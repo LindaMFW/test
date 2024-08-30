@@ -1,0 +1,14 @@
+node_modules/
+/test-results/
+/api-test-results/
+/e2e-test-results/
+/playwright-report/
+/playwright/.cache/
+/playwright/download/
+/allure-results/
+/allure-report/
+/__reports/
+/__reports_allure/
+/__results/
+.idea
+resources/data/temp/

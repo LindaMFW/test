@@ -1,0 +1,281 @@
+version: 2.1
+
+orbs:
+  slack: circleci/slack@4.12.5
+  jq: circleci/jq@2.2.0
+  python: circleci/python@2.1.1
+
+  # allure: ayte/allure@0.1.3
+
+#working_directory: ~/MFC_TRADE_PARTNER_MASTER_DIR_E2E_TESTING
+
+parameters:
+  test_type:
+    default: 'api_test'
+    description: 'The kind of test you want to execute: api or end2end test'
+    type: enum
+    enum: ['api_test', 'e2e_test', 'e2e_test_safari', 'e2e_test_firefox']
+
+setup: true
+
+commands:
+  cmd_env:
+    steps:
+      - run:
+          name: Install Dependencies
+          command: npm install --save-dev
+
+  cmd_allure:
+    steps:
+      - attach_workspace:
+          at: ./
+      - run:
+          name: Get __reports and __reports_allure from workspace
+          command: |
+            mkdir -p {workspace/__reports,__reports};
+            cp -r workspace/__reports __reports;
+            mkdir -p {workspace/__reports_allure,__reports_allure};
+            cp -r workspace/__reports_allure __reports_allure;
+            cp -r workspace/__reports __reports;
+      - run:
+          name: Generate allure report
+          command: npx allure-commandline@2.23.0 generate __reports_allure -o __reports/allure  --clean
+      - store_artifacts:
+          path: ./__reports
+
+  cmd_notify_slack:
+    steps:
+      - jq/install
+      - run:
+          name: Generate date
+          command: |
+            echo 'export TEST_DATE=$(date -u +"%Y-%m-%d")' >> "$BASH_ENV"
+            echo 'export ARTIFACTS_LINK=https://output.circle-artifacts.com/output/job/${CIRCLE_WORKFLOW_JOB_ID}/artifacts/${CIRCLE_NODE_INDEX}' >> "$BASH_ENV"
+            echo 'export PLAYWRIGHT_REPORT_LINK=${ARTIFACTS_LINK}/__reports/index.html' >> "$BASH_ENV"
+            echo 'export ALLURE_REPORT_LINK=${ARTIFACTS_LINK}/__reports/allure/index.html' >> "$BASH_ENV"
+            echo 'export REPORT_TYPE=$(echo << pipeline.parameters.test_type >> | tr a-z A-Z)' >> "$BASH_ENV"
+            echo 'export TOTAL_PASSED=$(jq '.totalPassed' __reports/test-report-for-slack.json)' >> "$BASH_ENV"
+            echo 'export TOTAL_FAILED=$(jq '.totalFailed' __reports/test-report-for-slack.json)' >> "$BASH_ENV"
+            echo 'export TOTAL_FLAKY=$(jq '.totalFlaky' __reports/test-report-for-slack.json)' >> "$BASH_ENV"
+            echo 'export TOTAL_SKIPPED=$(jq '.totalSkipped' __reports/test-report-for-slack.json)' >> "$BASH_ENV"
+            echo 'export TOTAL_TIMEDOUT=$(jq '.totalTimedOut' __reports/test-report-for-slack.json)' >> "$BASH_ENV"
+            echo 'export TOTAL_INTERRUPTED=$(jq '.totalInterrupted' __reports/test-report-for-slack.json)' >> "$BASH_ENV"
+            source "$BASH_ENV"
+      - slack/notify:
+          custom: |
+            {
+              "blocks": [
+                {
+                  "type": "header",
+                  "text": {
+                    "type": "plain_text",
+                    "text": "[DPM][${REPORT_TYPE}] Report for ${TEST_DATE}",
+                    "emoji": true
+                  }
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "plain_text",
+                      "text": "✅ Passed: ${TOTAL_PASSED}",
+                      "emoji": true
+                    },
+                    {
+                      "type": "plain_text",
+                      "text": "❌ Failed: ${TOTAL_FAILED}",
+                      "emoji": true
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "plain_text",
+                      "text": "⚠️ Flaky: ${TOTAL_FLAKY}",
+                      "emoji": true
+                    },
+                     {
+                      "type": "plain_text",
+                      "text": "⏭️ Skipped: ${TOTAL_SKIPPED}",
+                      "emoji": true
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "fields": [
+                    {
+                      "type": "plain_text",
+                      "text": "⏱️ Timed Out: ${TOTAL_TIMEDOUT}",
+                      "emoji": true
+                    },
+                    {
+                      "type": "plain_text",
+                      "text": "🚫 Interrupted: ${TOTAL_INTERRUPTED}",
+                      "emoji": true
+                    }
+                  ]
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "<${PLAYWRIGHT_REPORT_LINK}|View Playwright report> | <${ALLURE_REPORT_LINK}|View Allure report>"
+                  }
+                },
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "<https://moneyforward.tmxtestrail.com/index.php?/plans/view/2369 |View Testrails report>"
+                  }
+                }
+              ]
+            }
+          event: always
+
+executors:
+  playwright-1-46-1:
+    docker:
+      - image: mcr.microsoft.com/playwright:v1.46.1-focal
+  python:
+    docker:
+      - image: cimg/python:3.11
+  allure:
+    docker:
+      - image: frankescobar/allure-docker-service:2.9.0
+  runner-report:
+    docker:
+      - image: timbru31/java-node:11-jdk-18
+  exec_java:
+    docker:
+      - image: cimg/openjdk:11.0
+  exec_node:
+    docker:
+      - image: cimg/node:18.9.0
+  exec_java_node:
+    docker:
+      - image: timbru31/java-node:11-jdk-18
+
+workflows:
+  daily-intergration-test:
+    when:
+      equal: [daily_test, << pipeline.schedule.name >>]
+    jobs:
+      #- job_lint
+      - job_test
+      - job_allure_report:
+          requires:
+            - job_test
+  manual-workflow:
+    when:
+      equal: [configTestRail, << pipeline.git.branch >>]
+    jobs:
+      - job_test
+      - job_allure_report_manual_workflow:
+          requires:
+            - job_test
+
+jobs:
+  job_lint:
+    executor: exec_node
+    steps:
+      - checkout
+
+  job_test:
+    circleci_ip_ranges: true
+    executor: exec_node
+    environment:
+      CI: true
+    steps:
+      - checkout
+      - cmd_env
+      - run: sudo npx playwright install-deps
+      - run:
+          name: Install Playwright Browsers
+          command: npx playwright install
+      - run:
+          environment:
+            env: << pipeline.git.branch >>
+          name: Run tests
+          no_output_timeout: 300m
+          command: |
+            if [ "$env" == "main" ]; then
+              echo "running on main branch!"
+              npm run << pipeline.parameters.test_type>> --env=stg|| exit 0;
+            elif [ "$env" == "dev" ]; then
+              echo "running on dev branch!"
+              npm run << pipeline.parameters.test_type>> --env=dev|| exit 0;
+            elif [ "$env" == "prd" ]; then
+              echo "running on prd branch!"
+              npm run << pipeline.parameters.test_type>> --env=prd|| exit 0;  
+            else
+              echo "running on $env branch!"
+              npm run << pipeline.parameters.test_type>> --env=stg|| exit 0;  
+            fi
+        #command: npm run << pipeline.parameters.test_type>> --env=<< pipeline.git.branch >>|| exit 0;
+      - run:
+          name: Check __reports_allure
+          command: |
+            cd __reports_allure
+            ls
+      - store_artifacts:
+          path: ./__results
+
+      - run: sudo apt-get update && sudo apt-get install python3-pip python3-dev
+      - run: python3 --version
+      - jq/install
+      - run:
+          command: pip install trcli
+
+      - run:
+          name: 'Send results to Testrail'
+          command: node "src/testRail/runTestRail.js"
+
+      - persist_to_workspace:
+          root: ./
+          paths:
+            - __reports
+            - __reports_allure
+
+  job_allure_report:
+    executor: exec_java_node
+    steps:
+      - checkout
+      - cmd_allure
+      - when:
+          condition:
+            or:
+              - equal: [main, << pipeline.git.branch >>]
+              - equal: [prd, << pipeline.git.branch >>]
+          steps:
+            - cmd_notify_slack
+
+  job_allure_report_manual_workflow:
+    executor: exec_java_node
+    steps:
+      - checkout
+      - cmd_allure
+      - when:
+          condition:
+            equal: [configTestRail, << pipeline.git.branch >>]
+          steps:
+            - cmd_notify_slack
+
+  #  - run:
+  #      name: Run e2e test
+  #      command: npm run e2etest
+  #- store_artifacts:
+  #    path: ./playwright-report
+  # - aws-s3/sync:
+  #     arguments: |
+  #     from: 'dist'
+  #     to: 's3://asset-accounting-test-qa-testing-bucket'
+  #     aws-access-key-id: AWS_ACCESS_KEY_ID
+  #     aws-region: AWS_REGION
+  #     aws-secret-access-key: AWS_SECRET_ACCESS_KEY
+  #- store_test_results:
+  #    path: ./playwright-report
+  #- allure_report

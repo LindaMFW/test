@@ -1,0 +1,48 @@
+{
+  "name": "playwrighlearning",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "fmt": "prettier --write \"src/**/*.{ts,json}\" \"libs/**/*.{ts,json}\" \"testcases/**/*.{ts,json}\" \"resources/**/*.{ts,json, csv}\"",
+    "e2e_test:ui": "env-cmd -f .env.$npm_config_env npx playwright test --project=chrome",
+    "e2e_test": "env-cmd -f .env.$npm_config_env npx playwright test --ui --project=chrome",
+    "e2e_test_safari": "env-cmd -f .env.$npm_config_env npx playwright test --project=safari",
+    "e2e_test_firefox": "env-cmd -f .env.$npm_config_env npx playwright test --project=firefox",
+    "api_test": "env-cmd -f resources/env/.env.$npm_config_env npx playwright test --project=api",
+    "full_test": "env-cmd -f .env.$npm_config_env npx playwright test",
+    "allure-generate": "env-cmd -f .env.$npm_config_env npx allure generate allure-results --clean",
+    "testrail_newRun": "trcli -n -c \"./env/testrail.yaml\" parse_junit --milestone-id \"72\" --suite-id \"351\" --case-matcher \"name\"",
+    "testrail_updateRun": "trcli -y -c \"./env/testrail.yaml\" parse_junit --run-id \"1473\" --suite-id \"5520\" --milestone-id \"72\" --case-matcher \"name\""
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@databases/mysql": "^5.2.1",
+    "@databases/mysql-schema-cli": "^1.1.1",
+    "@databases/mysql-typed": "^1.0.0",
+    "@playwright/test": "^1.46.1",
+    "@types/encoding-japanese": "^2.0.1",
+    "@types/node": "^22.4.2",
+    "allure-commandline": "^2.23.0",
+    "allure-playwright": "^2.0.0",
+    "browserstack-local": "^1.4.8",
+    "cross-env": "^7.0.3",
+    "global-agent": "^3.0.0",
+    "prettier": "3.2.5"
+  },
+  "dependencies": {
+    "@databases/mysql": "^5.2.1",
+    "@databases/mysql-schema-cli": "^1.1.1",
+    "@databases/mysql-typed": "^1.0.0",
+    "detect-file-encoding-and-language": "^2.4.0",
+    "dotenv": "^16.3.1",
+    "encoding-japanese": "^2.0.0",
+    "env-cmd": "^10.1.0",
+    "json-2-csv": "^4.1.0",
+    "module-alias": "^2.2.3",
+    "playwright": "^1.46.1",
+    "totp-generator": "1.0.0"
+  }
+}

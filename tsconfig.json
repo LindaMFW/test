@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "baseUrl": "./",
+    "paths": {
+      "@resources/*": ["resources/*"],
+      "@libs/*": ["libs/*"],
+      "@models/*": ["src/models/*"],
+      "@endpoints/*": ["src/endpoints/*"],
+      "@steps/*": ["src/steps/*"],
+      "@common/*": ["src/common/*"]
+    }
+  }
+}

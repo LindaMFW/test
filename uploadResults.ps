@@ -1,0 +1,18 @@
+trcli -y `
+  -h "https://moneyforwardvietnam.testrail.io/" `
+  --project "Common Master" 
+  -u "qa.team@moneyforward.vn" `
+  -p "2HUWE@phPMU9wER" `
+  parse_junit `
+  --title "Trade Partner Master - API Automated Test Run" `
+  -f "./__reports/test-report.xml"
+
+ 
+trcli -y \
+  -h https://moneyforwardvietnam.testrail.io \
+  --project "Common Master" \
+  --username "qa.team@moneyforward.vn" \
+  --password "2HUWE@phPMU9wER" \
+  parse_junit \
+  --title "Playwright Automated Test Run" \
+  -f "__reports/test-report.xml"
